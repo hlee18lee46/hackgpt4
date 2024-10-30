@@ -8,6 +8,12 @@ import requests
 import json
 import re
 from bson import ObjectId
+from flask_cors import CORS
+
+app = Flask(__name__)
+CORS(app)
+
+
 
 # Load environment variables from .env file
 load_dotenv()
@@ -19,6 +25,8 @@ uri = os.getenv("MONGO_URI")
 client = MongoClient(uri, server_api=ServerApi('1'))
 db = client['hancluster']  # MongoDB database name
 collection = db['dog_breeds']  # MongoDB collection name
+search_stats_collection = db['search_stats']  # New collection for breed search counts
+
 api_key = os.getenv("OPENAI_API_KEY")
 
 # Helper function to serialize MongoDB ObjectId
@@ -36,12 +44,23 @@ def ping_db():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/drop_collections', methods=['POST'])
+def drop_collections():
+    try:
+        # Drop specific collections
+        db.dog_breeds.drop()
+        db.search_stats.drop()
+        print("Collections dropped successfully!")
+        return jsonify({"message": "Collections dropped successfully!"}), 200
+    except Exception as e:
+        print("Error dropping collections:", e)
+        return jsonify({"error": str(e)}), 500
+
 # Route to display the upload form
 @app.route("/upload", methods=["GET"])
 def upload_form():
     return render_template("upload.html")
 
-# Process the uploaded image and analyze it
 # Process the uploaded image and analyze it
 @app.route("/upload", methods=["POST"])
 def upload_and_analyze_image():
@@ -58,9 +77,9 @@ def upload_and_analyze_image():
 
         # Define the prompt
         prompt = (
-            "Can you provide a JSON object with details such as height, weight, "
-            "lifespan, breed, breed group (only group name, not including \"Group\"), shed level, temperament (in the list), energy level, and "
-            "common health concerns (in the list) about the dog in the image? Format the response in JSON."
+            "Can you provide a JSON object with details such as height (as the field name \"height\"), weight (as the field name \"weight\"), "
+            "lifespan (as the field name \"lifespan\"), breed (as the field name \"breed\"), breed group (only group name, not including \"Group\", as the field name \"breed_group\"), shed level (as the field name \"shed_level\"), temperament (in a list, as the field name \"temperament\"), energy level (as the field name \"energy_level\"), and "
+            "common health concerns (in the list, as the field name \"common_health_concerns\") about the dog in the image? Format the response in JSON."
         )
 
         headers = {
@@ -128,9 +147,49 @@ def upload_and_analyze_image():
 
     return jsonify({"error": "Unknown error"}), 500
 
+@app.route("/insert_breed_data", methods=["POST"])
+def insert_breed_data():
+    # Define the breed data to be inserted
+    breed_data = {
+        "breed": "doggy",
+        "breed_group": "Toy",
+        "count": 1
+    }
+    
+    # Insert the data into `breed_stats` collection
+    result = db.breed_stats.update_one(
+        {"breed": breed_data["breed"], "breed_group": breed_data["breed_group"]},
+        {"$set": breed_data},
+        upsert=True  # Ensures the document is created if it doesn't already exist
+    )
+    
+    # Check if the document was inserted or updated
+    if result.upserted_id:
+        message = "New document inserted successfully!"
+    else:
+        message = "Document already exists. Count reset to 1."
+
+    return jsonify({"message": message})
+
+@app.route('/view_data')
+def view_data():
+    # Fetch all documents from `breed_stats`
+    breed_stats_data = list(db.breed_stats.find())  # Adjusted to use a single collection
+
+    # Convert ObjectId to string for JSON serialization
+    for item in breed_stats_data:
+        item["_id"] = str(item["_id"])
+
+    return jsonify({
+        "breed_stats": breed_stats_data
+    })
+
+
+
 @app.route('/')
 def home():
     return "Welcome to GPT4o: Code & Conquer with MongoDB and GPT-4!"
+
 
 if __name__ == '__main__':
     app.run(debug=True)
