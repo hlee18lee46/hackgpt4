@@ -171,16 +171,25 @@ def upload_base64_image():
         image_data = base64.b64decode(base64_image)
         
         # Save the decoded image as "img1.jpg"
-        with open("img1.jpg", "wb") as img_file:
+        image_path = "img1.jpg"
+        with open(image_path, "wb") as img_file:
             img_file.write(image_data)
         
-        return jsonify({"message": "Image received and saved as img1.jpg"}), 200
+        # Re-encode the saved image to base64 to return in the response
+        with open(image_path, "rb") as img_file:
+            encoded_image = base64.b64encode(img_file.read()).decode("utf-8")
+        
+        return jsonify({
+            "message": "Image received and saved successfully!",
+            "image_base64": encoded_image  # Send the base64-encoded image back in the response
+        }), 200
 
     except Exception as e:
         print("Error decoding or saving image:", e)
         return jsonify({"error": "Failed to decode or save image"}), 500
+
     
-    
+
 @app.route("/insert_breed_data", methods=["POST"])
 def insert_breed_data():
     # Define the breed data to be inserted
