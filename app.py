@@ -47,13 +47,12 @@ def ping_db():
 @app.route('/drop_collections', methods=['POST'])
 def drop_collections():
     try:
-        # Drop specific collections
-        db.dog_breeds.drop()
-        db.search_stats.drop()
-        print("Collections dropped successfully!")
-        return jsonify({"message": "Collections dropped successfully!"}), 200
+        # Drop the breed_stats collection
+        db.breed_stats.drop()
+        print("Collection dropped successfully!")
+        return jsonify({"message": "Collection dropped successfully!"}), 200
     except Exception as e:
-        print("Error dropping collections:", e)
+        print("Error dropping collection:", e)
         return jsonify({"error": str(e)}), 500
 
 # Route to display the upload form
@@ -77,9 +76,9 @@ def upload_and_analyze_image():
 
         # Define the prompt
         prompt = (
-            "Can you provide a JSON object with details such as height (as the field name \"height\"), weight (as the field name \"weight\"), "
-            "lifespan (as the field name \"lifespan\"), breed (as the field name \"breed\"), breed group (only group name, not including \"Group\", as the field name \"breed_group\"), shed level (as the field name \"shed_level\"), temperament (in a list, as the field name \"temperament\"), energy level (as the field name \"energy_level\"), and "
-            "common health concerns (in the list, as the field name \"common_health_concerns\") about the dog in the image? Format the response in JSON."
+            "Can you provide a JSON object with details such as height (as height), weight (as weight), "
+            "lifespan (as lifespan), breed (as breed), breed group (only group name, not including \"Group\", as breed_group), shed level (as shed_level), temperament (in a list, as temperament), energy level (as energy_level), and "
+            "common health concerns (in the list, as common_health_concerns) about the dog in the image? Format the response in JSON."
         )
 
         headers = {
@@ -130,12 +129,23 @@ def upload_and_analyze_image():
                     # Parse the JSON string into a Python dictionary
                     dog_data = json.loads(dog_info_json)
                     
-                    # Insert parsed information into MongoDB
-                    result = collection.insert_one(dog_data)
-                    
-                    # Serialize MongoDB ObjectId and return response
-                    dog_data["_id"] = str(result.inserted_id)
-                    return jsonify(dog_data), 200
+                    # Display the full JSON data to the user
+                    display_data = dog_data
+
+                    # Extract breed and breed_group for search stats
+                    breed = dog_data.get("breed")
+                    breed_group = dog_data.get("breed_group")
+
+                    # Update or insert search count in `breed_stats` collection
+                    if breed and breed_group:
+                        db.breed_stats.update_one(
+                            {"breed": breed, "breed_group": breed_group},
+                            {"$inc": {"count": 1}},  # Increment count by 1 if it exists
+                            upsert=True  # Insert a new document if it doesn't exist
+                        )
+
+                    # Return the full JSON to the user
+                    return jsonify(display_data), 200
                 except Exception as e:
                     print("Error parsing JSON:", e)
                     return jsonify({"error": "Error parsing JSON response"}), 500
@@ -151,7 +161,7 @@ def upload_and_analyze_image():
 def insert_breed_data():
     # Define the breed data to be inserted
     breed_data = {
-        "breed": "doggy",
+        "breed": "Chihuahua",
         "breed_group": "Toy",
         "count": 1
     }
