@@ -157,6 +157,30 @@ def upload_and_analyze_image():
 
     return jsonify({"error": "Unknown error"}), 500
 
+
+@app.route("/upload_base64", methods=["POST"])
+def upload_base64_image():
+    # Check if the request contains JSON data with an "image" field
+    data = request.get_json()
+    if not data or "image" not in data:
+        return jsonify({"error": "No image data provided"}), 400
+
+    # Decode the base64 image data
+    try:
+        base64_image = data["image"]
+        image_data = base64.b64decode(base64_image)
+        
+        # Save the decoded image as "img1.jpg"
+        with open("img1.jpg", "wb") as img_file:
+            img_file.write(image_data)
+        
+        return jsonify({"message": "Image received and saved as img1.jpg"}), 200
+
+    except Exception as e:
+        print("Error decoding or saving image:", e)
+        return jsonify({"error": "Failed to decode or save image"}), 500
+    
+    
 @app.route("/insert_breed_data", methods=["POST"])
 def insert_breed_data():
     # Define the breed data to be inserted
