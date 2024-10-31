@@ -207,7 +207,8 @@ def upload_base64_return_info():
     # Decode the base64 image data
     try:
         base64_image = data["image"]
-        image_data = base64.b64decode(base64_image)
+        print("Encoded base64_image:", base64_image)
+        #image_data = base64.b64decode(base64_image)
 
         # Define the prompt for GPT-4
         prompt = (
