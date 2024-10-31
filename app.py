@@ -204,96 +204,91 @@ def upload_base64_return_info():
     if not data or "image" not in data:
         return jsonify({"error": "No image data provided"}), 400
 
-    # Decode the base64 image data
-    try:
-        base64_image = data["image"]
-        print("Encoded base64_image:", base64_image)
-        #image_data = base64.b64decode(base64_image)
+    # Encode the image in base64
+    base64_image = data["image"]
 
-        # Define the prompt for GPT-4
-        prompt = (
-            "Can you provide a JSON object with details such as height (as height), weight (as weight), "
-            "lifespan (as lifespan), breed (as breed), breed group (as breed_group), "
-            "shed level (as shed_level), temperament (in a list, as temperament), energy level (as energy_level), "
-            "and common health concerns (in a list, as common_health_concerns) about the dog in the image? "
-            "Format the response in JSON."
-        )
+    # Define the prompt
+    prompt = (
+        "Can you provide a JSON object with details such as height (as height), weight (as weight), "
+        "lifespan (as lifespan), breed (as breed), breed group (only group name, not including \"Group\", as breed_group), shed level (as shed_level), temperament (in a list, as temperament), energy level (as energy_level), and "
+        "common health concerns (in the list, as common_health_concerns) about the dog in the image? Format the response in JSON."
+    )
 
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}",
-        }
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}",
+    }
 
-        # Build the payload for the GPT-4 API call
-        payload = {
-            "model": "gpt-4o",
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": prompt
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
-                        }
-                    ]
-                }
-            ],
-            "max_tokens": 900
-        }
+    # Build the payload for the API call
+    payload = {
+        "model": "gpt-4o",
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": prompt
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
+                    }
+                ]
+            }
+        ],
+        "max_tokens": 900
+    }
 
-        # Make the request to OpenAI API (or any other plugin)
-        response = requests.post(
-            "https://api.openai.com/v1/chat/completions", headers=headers, json=payload
-        )
-        response_data = response.json()
+    # Make the request to OpenAI API
+    response = requests.post(
+        "https://api.openai.com/v1/chat/completions", headers=headers, json=payload
+    )
+    response_data = response.json()
 
-        # Print response data for debugging
-        print("Response Data:", response_data)
+    # Print response data for debugging
+    print("Response Data:", response_data)
 
-        if response_data and "choices" in response_data and len(response_data["choices"]) > 0:
-            content_text = response_data["choices"][0]["message"]["content"]
+    if response_data and "choices" in response_data and len(response_data["choices"]) > 0:
+        content_text = response_data["choices"][0]["message"]["content"]
+        
+        # Use regular expressions to check for JSON structure inside content_text
+        json_match = re.search(r'\{.*\}', content_text, re.DOTALL)
+        
+        if json_match:
+            dog_info_json = json_match.group(0)
 
-            # Use regular expressions to check for JSON structure inside content_text
-            json_match = re.search(r'\{.*\}', content_text, re.DOTALL)
+            try:
+                # Parse the JSON string into a Python dictionary
+                dog_data = json.loads(dog_info_json)
+                
+                # Display the full JSON data to the user
+                display_data = dog_data
 
-            if json_match:
-                dog_info_json = json_match.group(0)
+                # Extract breed and breed_group for search stats
+                breed = dog_data.get("breed")
+                breed_group = dog_data.get("breed_group")
 
-                try:
-                    # Parse the JSON string into a Python dictionary
-                    dog_data = json.loads(dog_info_json)
+                # Update or insert search count in `breed_stats` collection
+                if breed and breed_group:
+                    db.breed_stats.update_one(
+                        {"breed": breed, "breed_group": breed_group},
+                        {"$inc": {"count": 1}},  # Increment count by 1 if it exists
+                        upsert=True  # Insert a new document if it doesn't exist
+                    )
 
-                    # Extract breed and breed_group for search stats
-                    breed = dog_data.get("breed")
-                    breed_group = dog_data.get("breed_group")
+                # Return the full JSON to the user
+                return jsonify(display_data), 200
+            except Exception as e:
+                print("Error parsing JSON:", e)
+                return jsonify({"error": "Error parsing JSON response"}), 500
+        else:
+            # No JSON detected; return a friendly message
+            return jsonify({
+                "error": "No dog detected in the image. Please upload an image with a clear view of a dog."
+            }), 200
 
-                    # Update or insert search count in `search_stats` collection
-                    if breed and breed_group:
-                        search_stats_collection.update_one(
-                            {"breed": breed, "breed_group": breed_group},
-                            {"$inc": {"count": 1}},  # Increment count by 1 if it exists
-                            upsert=True  # Insert a new document if it doesn't exist
-                        )
-
-                    # Return the full JSON data to the user
-                    return jsonify(dog_data), 200
-                except Exception as e:
-                    print("Error parsing JSON:", e)
-                    return jsonify({"error": "Error parsing JSON response"}), 500
-            else:
-                # No JSON detected; return a friendly message
-                return jsonify({
-                    "error": "No dog detected in the image. Please upload an image with a clear view of a dog."
-                }), 200
-
-    except Exception as e:
-        print("Error decoding or processing image:", e)
-        return jsonify({"error": "Failed to decode or process image"}), 500
-    
+    return jsonify({"error": "Unknown error"}), 500
 
 @app.route("/insert_breed_data", methods=["POST"])
 def insert_breed_data():
