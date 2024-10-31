@@ -7,6 +7,7 @@ import base64
 import requests
 import json
 import re
+import pymongo
 from bson import ObjectId
 from flask_cors import CORS
 
@@ -19,6 +20,11 @@ CORS(app)
 load_dotenv()
 
 app = Flask(__name__)
+
+# Function to create a MongoDB client
+def get_mongo_client():
+    uri = os.getenv("MONGO_URI")  # Ensure MONGO_URI is correctly set in your environment
+    return pymongo.MongoClient(uri)
 
 # Get MongoDB URI and API key from environment variables
 uri = os.getenv("MONGO_URI")
@@ -191,6 +197,10 @@ def upload_base64_image():
 
 @app.route("/upload_base64_return_info", methods=["POST"])
 def upload_base64_return_info():
+    client = get_mongo_client()  # Move client initialization here
+    db = client['hancluster']
+    search_stats_collection = db['search_stats']
+
     data = request.get_json()
     if not data or "image" not in data:
         return jsonify({"error": "No image data provided"}), 400
