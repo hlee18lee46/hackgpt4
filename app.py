@@ -10,6 +10,8 @@ import re
 import pymongo
 from bson import ObjectId
 from flask_cors import CORS
+import io
+from PIL import Image
 
 app = Flask(__name__)
 CORS(app)
@@ -68,7 +70,7 @@ def upload_form():
 
 # Process the uploaded image and analyze it
 @app.route("/upload", methods=["POST"])
-def upload_and_analyze_image():
+def upload():
     if "image" not in request.files:
         return jsonify({"error": "No file part"}), 400
 
@@ -289,9 +291,74 @@ def upload_base64_return_info():
             }), 200
 
     return jsonify({"error": "Unknown error"}), 500
+@app.route("/upload_and_analyze", methods=["POST"])
+def upload_and_analyze_image():
+    if "file" not in request.files:
+        return jsonify({"error": "No file provided"}), 400
 
+    file = request.files["file"]
+
+    if file:
+        try:
+            # Load the image in memory for processing
+            image = Image.open(io.BytesIO(file.read()))
+
+            # Convert the image to base64 for sending to any image analysis API if needed
+            buffered = io.BytesIO()
+            image.save(buffered, format="JPEG")
+            base64_image = base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+            # Define your prompt or payload for the API
+            prompt = (
+                "Can you provide a JSON object with details such as height (as height), weight (as weight), "
+                "lifespan (as lifespan), breed (as breed), breed group (as breed_group), shed level (as shed_level), "
+                "temperament (in a list, as temperament), energy level (as energy_level), "
+                "and common health concerns (in the list, as common_health_concerns) about the dog in the image?"
+            )
+
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}",
+            }
+
+            # Make the request to the analysis API
+            payload = {
+                "model": "gpt-4o",
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+                        ]
+                    }
+                ],
+                "max_tokens": 900
+            }
+            response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+            response_data = response.json()
+
+            # Extracting the JSON response for SwiftUI
+            if response_data and "choices" in response_data and len(response_data["choices"]) > 0:
+                content_text = response_data["choices"][0]["message"]["content"]
+                
+                # Use regular expressions to check for JSON structure inside content_text
+                json_match = re.search(r'\{.*\}', content_text, re.DOTALL)
+                
+                if json_match:
+                    dog_info_json = json_match.group(0)
+                    dog_data = json.loads(dog_info_json)  # Parse into a Python dictionary
+                    return jsonify(dog_data), 200  # Send JSON back to Swift
+
+            return jsonify({"error": "Failed to analyze image content"}), 500
+
+        except Exception as e:
+            print("Error processing image:", e)
+            return jsonify({"error": "Failed to process image"}), 500
+
+    return jsonify({"error": "Unknown error"}), 500
 @app.route("/upload_multipart", methods=["POST"])
-def upload():
+def upload_multipart():
     # Ensure a file was provided
     if "file" not in request.files:
         return jsonify({"error": "No file provided"}), 400
