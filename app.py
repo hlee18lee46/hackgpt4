@@ -204,6 +204,7 @@ def upload_base64_return_info():
     if not data or "image" not in data:
         return jsonify({"error": "No image data provided"}), 400
 
+
     # Encode the image in base64
     base64_image = data["image"]
 
@@ -289,6 +290,27 @@ def upload_base64_return_info():
             }), 200
 
     return jsonify({"error": "Unknown error"}), 500
+
+
+@app.route('/convert_to_base64', methods=['GET', 'POST'])
+def convert_to_base64():
+    if request.method == 'POST':
+        if 'image' not in request.files:
+            return jsonify({"error": "No file part"}), 400
+
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({"error": "No selected file"}), 400
+
+        # Convert the uploaded image to a base64 string
+        base64_image = base64.b64encode(file.read()).decode('utf-8')
+        print("Base64 Encoded Image:", base64_image)  # Debugging: Print to console
+
+        # Return the base64-encoded string as JSON
+        return jsonify({"base64_string": base64_image}), 200
+
+    # Render the HTML form on GET request
+    return render_template('upload_image.html')
 
 @app.route("/insert_breed_data", methods=["POST"])
 def insert_breed_data():

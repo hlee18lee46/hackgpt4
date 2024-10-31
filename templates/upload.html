@@ -21,5 +21,43 @@
         <button type="submit">Drop Collections</button>
     </form>
     <a href="{{ url_for('home') }}">Back to Home</a>
+        <!-- New feature to convert an image to Base64 and display it -->
+        <h2>Convert Image to Base64</h2>
+        <form id="base64-form">
+            <label for="base64-image">Choose an image:</label>
+            <input type="file" id="base64-image" accept="image/*" required>
+            <button type="button" onclick="convertToBase64()">Convert to Base64</button>
+        </form>
+        <br>
+        <div id="output">
+            <h3>Base64 Output:</h3>
+            <pre id="base64-output"></pre>
+        </div>
+    
+        <script>
+            function convertToBase64() {
+                const fileInput = document.getElementById('base64-image');
+                const output = document.getElementById('base64-output');
+                
+                if (fileInput.files.length === 0) {
+                    output.textContent = "Please select an image first.";
+                    return;
+                }
+    
+                const file = fileInput.files[0];
+                const reader = new FileReader();
+    
+                reader.onload = function(e) {
+                    const base64String = e.target.result.split(',')[1];
+                    output.textContent = base64String;
+                };
+    
+                reader.onerror = function() {
+                    output.textContent = "Failed to convert image to Base64.";
+                };
+    
+                reader.readAsDataURL(file);
+            }
+        </script>
 </body>
 </html>

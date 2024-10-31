@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image to Base64 Converter</title>
+</head>
+<body>
+    <h2>Convert Image to Base64</h2>
+    <form action="/convert_to_base64" method="post" enctype="multipart/form-data">
+        <label for="image">Choose an image:</label>
+        <input type="file" name="image" id="image" accept="image/*" required>
+        <br><br>
+        <button type="submit">Convert to Base64</button>
+    </form>
+    <br>
+    <div id="output">
+        <h3>Base64 Output:</h3>
+        <pre id="base64-output"></pre>
+    </div>
+    <script>
+        // JavaScript to capture response and display base64 string
+        document.querySelector('form').onsubmit = async (event) => {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const response = await fetch('/convert_to_base64', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+            document.getElementById('base64-output').textContent = result.base64_string || result.error;
+        };
+    </script>
+</body>
+</html>
