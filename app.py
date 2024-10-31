@@ -197,14 +197,9 @@ def upload_base64_image():
 
 @app.route("/upload_base64_return_info", methods=["POST"])
 def upload_base64_return_info():
-    client = get_mongo_client()  # Move client initialization here
-    db = client['hancluster']
-    search_stats_collection = db['search_stats']
 
     data = request.get_json()
     # Debugging: Print the raw data received
-    print("Received data:", data)
-        # Debugging: Print the raw data received
     print("Received data:", data)
     if not data or "image" not in data:
         return jsonify({"error": "No image data provided"}), 400
