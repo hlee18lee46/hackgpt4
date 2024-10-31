@@ -290,6 +290,20 @@ def upload_base64_return_info():
 
     return jsonify({"error": "Unknown error"}), 500
 
+@app.route("/upload_multipart", methods=["POST"])
+def upload():
+    # Ensure a file was provided
+    if "file" not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+
+    # Retrieve the file
+    file = request.files["file"]
+    
+    # Optionally, you can save or process this file
+    file.save("uploaded_image.jpg")  # Save temporarily to disk for processing
+    
+    # For demonstration, return a success message
+    return jsonify({"message": "File received successfully"}), 200
 
 @app.route('/convert_to_base64', methods=['GET', 'POST'])
 def convert_to_base64():
