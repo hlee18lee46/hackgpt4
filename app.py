@@ -1,6 +1,8 @@
 from flask import Flask, request, jsonify, render_template
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
+from pymongo import MongoClient
+from werkzeug.security import generate_password_hash, check_password_hash
 import os
 from dotenv import load_dotenv
 import base64
@@ -15,6 +17,7 @@ from PIL import Image
 
 app = Flask(__name__)
 CORS(app)
+
 
 
 
@@ -34,6 +37,7 @@ client = MongoClient(uri, server_api=ServerApi('1'))
 db = client['hancluster']  # MongoDB database name
 collection = db['dog_breeds']  # MongoDB collection name
 search_stats_collection = db['search_stats']  # New collection for breed search counts
+user_collection = db['users']
 
 api_key = os.getenv("OPENAI_API_KEY")
 
@@ -51,6 +55,46 @@ def ping_db():
         return jsonify({"message": "Pinged your deployment. Successfully connected to MongoDB!"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    username = data.get("username")
+    password = data.get("password")
+
+    if not username or not password:
+        return jsonify({"error": "Username and password required"}), 400
+
+    # Check if the username already exists
+    if user_collection.find_one({"username": username}):
+        return jsonify({"error": "Username already exists"}), 409
+
+    # Hash the password and store it
+    hashed_password = generate_password_hash(password, method='pbkdf2:sha256', salt_length=16)
+    user_collection.insert_one({
+        "username": username,
+        "password": hashed_password
+    })
+
+    return jsonify({"message": "User registered successfully"}), 201
+
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    username = data.get("username")
+    password = data.get("password")
+
+    if not username or not password:
+        return jsonify({"error": "Username and password required"}), 400
+
+    # Retrieve user data from the database
+    user = user_collection.find_one({"username": username})
+
+    if not user or not check_password_hash(user["password"], password):
+        return jsonify({"error": "Invalid username or password"}), 401
+
+    # Authentication successful, return success message or token if needed
+    return jsonify({"message": "Login successful"}), 200
 
 @app.route('/drop_collections', methods=['POST'])
 def drop_collections():
