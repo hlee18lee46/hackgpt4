@@ -82,9 +82,9 @@ def upload_and_analyze_image():
 
         # Define the prompt
         prompt = (
-            "Can you provide a JSON object with details such as height (as height), weight (as weight), "
-            "lifespan (as lifespan), breed (as breed), breed group (only group name, not including \"Group\", as breed_group), shed level (as shed_level), temperament (in a list, as temperament), energy level (as energy_level), and "
-            "common health concerns (in the list, as common_health_concerns) about the dog in the image? Format the response in JSON."
+            "Can you provide a JSON object with details such as height (as the field name \"height\"), weight (as the field name \"weight\"), "
+            "lifespan (as the field name \"lifespan\"), breed (as the field name \"breed\"), breed group (only group name, not including \"Group\", as the field name \"breed_group\"), shed level (as the field name \"shed_level\"), temperament (in a list, as the field name \"temperament\"), energy level (as the field name \"energy_level\"), and "
+            "common health concerns (in the list, as the field name \"common_health_concerns\") about the dog in the image? Format the response in JSON."
         )
 
         headers = {
@@ -210,11 +210,10 @@ def upload_base64_return_info():
 
     # Define the prompt
     prompt = (
-        "Can you provide a JSON object with details such as height (as height), weight (as weight), "
-        "lifespan (as lifespan), breed (as breed), breed group (only group name, not including \"Group\", as breed_group), shed level (as shed_level), temperament (in a list, as temperament), energy level (as energy_level), and "
-        "common health concerns (in the list, as common_health_concerns) about the dog in the image? Format the response in JSON."
+        "Can you provide a JSON object with details such as height (as the field name \"height\"), weight (as the field name \"weight\"), "
+        "lifespan (as the field name \"lifespan\"), breed (as the field name \"breed\"), breed group (only group name, not including \"Group\", as the field name \"breed_group\"), shed level (as the field name \"shed_level\"), temperament (in a list, as the field name \"temperament\"), energy level (as the field name \"energy_level\"), and "
+        "common health concerns (in the list, as the field name \"common_health_concerns\") about the dog in the image? Format the response in JSON."
     )
-
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {api_key}",
