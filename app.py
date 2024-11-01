@@ -47,6 +47,21 @@ def serialize_mongo_object(data):
         data["_id"] = str(data["_id"])
     return data
 
+#view user
+@app.route('/view_user', methods=['GET'])
+def view_user():
+    username = request.args.get('username')
+    if not username:
+        return jsonify({"error": "Username is required"}), 400
+
+    # Fetch user info from MongoDB
+    user = user_collection.find_one({"username": username}, {"_id": 0, "password": 0})
+    if user:
+        return jsonify(user), 200
+    else:
+        return jsonify({"error": "User not found"}), 404
+
+
 # Check MongoDB connection
 @app.route('/ping_db', methods=['GET'])
 def ping_db():
@@ -55,6 +70,40 @@ def ping_db():
         return jsonify({"message": "Pinged your deployment. Successfully connected to MongoDB!"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+@app.route("/api/dog-breed-data", methods=["GET"])
+def get_dog_breed_data():
+    # Aggregate breed data
+    pipeline_breed = [
+        {"$group": {"_id": "$breed", "count": {"$sum": "$count"}}},
+        {"$sort": {"count": -1}}
+    ]
+    breed_data = list(db.breed_stats.aggregate(pipeline_breed))
+    
+    # Aggregate breed group data
+    pipeline_breed_group = [
+        {"$group": {"_id": "$breed_group", "count": {"$sum": "$count"}}},
+        {"$sort": {"count": -1}}
+    ]
+    breed_group_data = list(db.breed_stats.aggregate(pipeline_breed_group))
+    
+    # Convert ObjectId to string for JSON serialization
+    for item in breed_data + breed_group_data:
+        item["_id"] = str(item["_id"])
+
+    return jsonify({
+        "breed_data": breed_data,
+        "breed_group_data": breed_group_data
+    })
+
+
+
+
+@app.route('/users', methods=['GET'])
+def get_all_users():
+    users = user_collection.find({}, {"password": 0})  # Exclude the password field
+    user_list = [{"username": user["username"]} for user in users]
+    return jsonify(user_list), 200
 
 @app.route('/register', methods=['POST'])
 def register():
